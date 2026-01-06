@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>视频二创助手</title>
+    <style>
+        /* --- 基础样式 --- */
+        :root {
+            --primary: #2962FF; 
+            --primary-light: #E3F2FD;
+            --accent: #FF6D00;
+            --bg-body: #F5F7FA;
+            --bg-card: #FFFFFF;
+            --text-main: #1D1D1F;
+            --text-sub: #86868B;
+            --border: #E5E5EA;
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+        
+        body { 
+            margin: 0; 
+            font-family: 'Source Han Sans SC', 'PingFang SC', sans-serif; 
+            background: #e0e0e0; 
+            height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            overflow: hidden; 
+            color: var(--text-main);
+        }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+
+        #app { width: 100%; max-width: 375px; height: 100%; background: var(--bg-body); position: relative; display: flex; flex-direction: column; box-shadow: 0 0 40px rgba(0,0,0,0.1); }
+
+        /* --- 页面容器 --- */
+        .page { flex: 1; overflow-y: auto; display: none; flex-direction: column; animation: fadeIn 0.2s ease; padding-bottom: calc(60px + var(--safe-bottom)); }
+        .page.active { display: flex; }
+        .sub-page { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; background: var(--bg-body); display: none; flex-direction: column; }
+        
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- 导航栏 --- */
+        .nav { height: 44px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 17px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-top: 20px; box-sizing: content-box; position: relative; flex-shrink: 0; z-index: 60; }
+        .nav-back { position: absolute; left: 0; bottom: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .nav-right { position: absolute; right: 16px; bottom: 0; height: 44px; display: flex; align-items: center; font-size: 13px; color: var(--primary); font-weight: 500; cursor: pointer; }
+
+        /* --- 首页 Banner --- */
+        .banner {
+            height: 190px;
+            background: linear-gradient(135deg, #1565C0 0%, #42A5F5 100%);
+            position: relative; overflow: hidden; color: white; padding: 24px;
+            display: flex; flex-direction: column; justify-content: flex-end; flex-shrink: 0;
+        }
+        .banner::before {
+            content: ''; position: absolute; top: -20px; right: -20px; width: 140px; height: 140px;
+            background: rgba(255,255,255,0.1); border-radius: 50%; filter: blur(20px);
+        }
+        .banner::after {
+            content: ''; position: absolute; bottom: 40px; left: -10px; width: 80px; height: 80px;
+            background: rgba(255,255,255,0.15); border-radius: 50%; filter: blur(15px);
+        }
+        .banner-content { position: relative; z-index: 2; }
+        .banner h1 { margin: 0 0 8px; font-size: 26px; letter-spacing: 1px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .banner p { margin: 0; font-size: 13px; opacity: 0.95; background: rgba(255,255,255,0.2); display: inline-block; padding: 4px 10px; border-radius: 20px; backdrop-filter: blur(5px); }
+
+        /* --- 首页网格 (优化版：更大气) --- */
+        .grid { padding: 16px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .card { 
+            background: #fff; padding: 16px; border-radius: 14px; position: relative; 
+            box-shadow: 0 3px 10px rgba(0,0,0,0.03); cursor: pointer; transition: transform 0.1s; 
+            display: flex; flex-direction: row; align-items: center; /* 保持左图右文 */
+            height: 100px; /* 高度增加到 100px */
+        }
+        .card:active { transform: scale(0.98); background: #fafafa; }
+        
+        .card-icon { 
+            width: 44px; height: 44px; /* 图标加大 */
+            background: var(--primary-light); 
+            border-radius: 10px; color: var(--primary); display: flex; align-items: center; justify-content: center; 
+            margin-right: 12px; flex-shrink: 0;
+        }
+        .card-icon svg { width: 24px; height: 24px; }
+        
+        .card-info { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+        .card-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; color: var(--text-main); white-space: nowrap; }
+        .card-desc { font-size: 11px; color: var(--text-sub); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .badge { 
+            position: absolute; top: 0; right: 0; 
+            background: linear-gradient(135deg, #FF6D00, #FF9E40); 
+            color: #fff; font-size: 10px; padding: 3px 7px; 
+            border-radius: 0 14px 0 8px; 
+            font-weight: bold; box-shadow: -1px 1px 4px rgba(255, 109, 0, 0.2);
+        }
+        .badge.new { background: linear-gradient(135deg, #00C853, #69F0AE); box-shadow: -1px 1px 4px rgba(0, 200, 83, 0.2); }
+
+        /* 敬请期待卡片 */
+        .card.disabled { background: #F9FAFB; border: 1px dashed #D1D5DB; box-shadow: none; cursor: default; justify-content: center; }
+        .card.disabled .card-icon { background: #EEE; color: #BBB; margin-right: 10px; }
+        .card.disabled .card-title { color: #999; margin: 0; }
+
+        /* --- 功能页组件 --- */
+        .work-area { padding: 20px; flex: 1; overflow-y: auto; }
+        
+        .section-upload {
+            height: 160px; border: 2px dashed #D1D1D6; border-radius: 16px; background: #FAFAFA;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #999; margin-bottom: 20px; transition: all 0.3s; cursor: pointer;
+        }
+        .section-upload.has-file { border-style: solid; border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+        
+        .section-input { margin-bottom: 20px; }
+        .section-input label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--text-main); }
+        .text-input { width: 100%; height: 120px; padding: 14px; border: 1px solid #E5E5EA; border-radius: 12px; font-size: 14px; resize: none; background: #fff; font-family: inherit; }
+        .text-input:focus { border-color: var(--primary); }
+
+        .section-position { margin-bottom: 24px; }
+        .pos-options { display: flex; gap: 12px; }
+        .pos-btn { flex: 1; padding: 10px; text-align: center; border: 1px solid #E5E5EA; border-radius: 8px; font-size: 13px; color: var(--text-sub); background: #fff; cursor: pointer; }
+        .pos-btn.selected { border-color: var(--primary); color: var(--primary); background: var(--primary-light); font-weight: 600; }
+
+        .btn { width: 100%; padding: 12px; border-radius: 24px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 16px; display: block; transition: opacity 0.2s; }
+        .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(41, 98, 255, 0.3); }
+        .btn-primary:disabled { background: #D1D5DB; box-shadow: none; cursor: not-allowed; }
+        .btn-outline { background: #fff; border: 1px solid var(--primary); color: var(--primary); }
+        .btn-danger { background: #fff; border: 1px solid #FF5252; color: #FF5252; padding: 4px 10px; font-size: 12px; border-radius: 12px; }
+        .btn-small { padding: 4px 10px; font-size: 12px; border-radius: 12px; }
+
+        .tutorial-box { margin-top: 10px; padding-top: 20px; border-top: 1px solid #EEE; }
+        .tut-title { font-size: 13px; font-weight: 600; color: var(--text-sub); margin-bottom: 12px; }
+        .tut-text { font-size: 13px; color: #666; margin: 6px 0; line-height: 1.5; padding-left: 10px; border-left: 2px solid #EEE; }
+        .tut-img { width: 100%; height: 100px; background: #F5F7FA; border-radius: 8px; margin-top: 12px; display: flex; align-items: center; justify-content: center; color: #C7C7CC; font-size: 12px; }
+
+        .result-box { display: none; margin-top: 20px; animation: fadeIn 0.3s; }
+        .video-preview { width: 100%; height: 180px; background: #000; border-radius: 12px; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; color: #fff; flex-direction: column; }
+        .text-preview { width: 100%; min-height: 100px; background: #F9F9F9; border: 1px solid #E5E5EA; border-radius: 12px; padding: 16px; font-size: 14px; color: var(--text-main); margin-bottom: 16px; line-height: 1.6; }
+
+        /* --- 历史记录列表 --- */
+        .history-tip { background: #FFF8E1; color: #F57F17; font-size: 12px; padding: 8px 16px; text-align: center; }
+        .history-list { padding: 16px; }
+        .history-item { background: #fff; padding: 12px; border-radius: 12px; margin-bottom: 10px; display: flex; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+        .h-thumb { width: 50px; height: 50px; background: #F0F2F5; border-radius: 8px; margin-right: 12px; display: flex; align-items: center; justify-content: center; color: #999; flex-shrink: 0; }
+        .h-info { flex: 1; overflow: hidden; }
+        .h-title { font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .h-time { font-size: 11px; color: var(--text-sub); font-family: monospace; }
+        .h-actions { display: flex; gap: 8px; margin-left: 10px; }
+        .empty-state { text-align: center; padding: 40px 0; color: #999; font-size: 14px; }
+
+        /* --- 我的页面 --- */
+        .user-header { background: var(--bg-card); padding: 30px 20px; display: flex; align-items: center; margin-bottom: 12px; }
+        .avatar { width: 60px; height: 60px; border-radius: 50%; background: #F0F0F5; margin-right: 16px; display: flex; align-items: center; justify-content: center; }
+        .vip-badge { display: inline-block; background: #2C3E50; color: #FFD700; font-size: 10px; padding: 3px 8px; border-radius: 4px; margin-top: 6px; font-weight: 500; }
+        .quota-card { margin: 0 16px 16px; background: linear-gradient(90deg, #34495E, #2C3E50); color: #FFD700; padding: 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .menu-list { background: var(--bg-card); padding: 0 16px; }
+        .menu-item { padding: 16px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 14px; cursor: pointer; color: var(--text-main); }
+        .menu-item:last-child { border-bottom: none; }
+        
+        .vip-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--bg-card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+        .vip-table th, .vip-table td { padding: 12px; text-align: center; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .vip-table th { background: #F9F9F9; color: var(--text-sub); font-weight: 600; }
+        .vip-highlight { color: var(--accent); font-weight: bold; background: #FFFDF5; }
+
+        /* 底部 Tab */
+        .tab-bar { 
+            position: absolute; bottom: 0; left: 0; width: 100%; 
+            height: calc(50px + var(--safe-bottom)); 
+            background: rgba(255,255,255,0.98); 
+            border-top: 1px solid rgba(0,0,0,0.05); 
+            display: flex; padding-bottom: var(--safe-bottom); 
+            z-index: 100; 
+        }
+        .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; color: #999; cursor: pointer; transition: color 0.2s; }
+        .tab.active { color: var(--primary); }
+        .tab svg { width: 24px; height: 24px; margin-bottom: 3px; fill: currentColor; }
+
+        /* Toast & Modal */
+        .toast { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; display: none; z-index: 200; text-align: center; }
+        .modal-mask { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 150; display: none; align-items: center; justify-content: center; }
+        .modal { background: #fff; width: 80%; border-radius: 16px; padding: 24px; text-align: center; animation: fadeIn 0.2s; }
+        .modal h3 { margin: 0 0 12px; font-size: 18px; }
+        .modal p { margin: 0 0 20px; color: #666; font-size: 14px; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="toast" id="toast">操作成功</div>
+    
+    <!-- 弹窗 -->
+    <div class="modal-mask" id="alert-modal">
+        <div class="modal">
+            <h3>已开始处理</h3>
+            <p>任务已在后台运行，请到 [历史记录] 中查看结果。<br>您可以继续处理下一个视频。</p>
+            <button class="btn btn-primary" style="margin:0" onclick="closeModal()">我知道了</button>
+        </div>
+    </div>
+
+    <!-- 1. 首页 -->
+    <div id="page-home" class="page active">
+        <div class="banner">
+            <div class="banner-content">
+                <h1>视频二创助手</h1>
+                <p>简单高效的做视频工具</p>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <!-- 卡片1 -->
+            <div class="card" onclick="initFeature('watermark')">
+                <div class="badge">HOT</div>
+                <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+                <div class="card-info">
+                    <div class="card-title">视频去水印</div>
+                    <div class="card-desc">一键清除水印</div>
+                </div>
+            </div>
+            <!-- 卡片2 -->
+            <div class="card" onclick="initFeature('subtitle')">
+                <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H5V6h14v12zM6 10h2v2H6zm0 4h8v2H6zm10 0h2v2h-2zm-6-4h8v2h-8z"/></svg></div>
+                <div class="card-info">
+                    <div class="card-title">视频去字幕</div>
+                    <div class="card-desc">AI自动抹除字幕</div>
+                </div>
+            </div>
+            <!-- 卡片3 -->
+            <div class="card" onclick="initFeature('extract')">
+                <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></div>
+                <div class="card-info">
+                    <div class="card-title">文案提取</div>
+                    <div class="card-desc">提取视频文案</div>
+                </div>
+            </div>
+            <!-- 卡片4 -->
+            <div class="card" onclick="initFeature('rewrite')">
+                <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
+                <div class="card-info">
+                    <div class="card-title">文案改写</div>
+                    <div class="card-desc">智能润色洗稿</div>
+                </div>
+            </div>
+            <!-- 卡片5 -->
+            <div class="card" onclick="initFeature('addtext')">
+                <div class="badge new">NEW</div>
+                <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M21 3H3C1.9 3 1 3.9 1 5v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v3H5v-3zm0-4h14v3H5v-3z"/></svg></div>
+                <div class="card-info">
+                    <div class="card-title">视频加文字</div>
+                    <div class="card-desc">指定位置加字</div>
+                </div>
+            </div>
+            <!-- 卡片6: 敬请期待 -->
+            <div class="card disabled">
+                <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></div>
+                <div class="card-info">
+                    <div class="card-title">敬请期待</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 我的 -->
+    <div id="page-profile" class="page">
+        <div class="user-header">
+            <div class="avatar">
+                <svg viewBox="0 0 24 24" fill="#999" width="40" height="40"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            </div>
+            <div class="user-info">
+                <h2 style="margin:0; font-size:18px;">创作者小李</h2>
+                <span class="vip-badge">普通用户</span>
+            </div>
+        </div>
+
+        <div class="quota-card" onclick="openVip()">
+            <div>
+                <div style="font-size:12px; opacity:0.8; margin-bottom:4px;">今日剩余次数</div>
+                <div style="font-size:24px; font-weight:bold">5 <span style="font-size:14px; opacity:0.6">/ 5</span></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.15); padding:6px 12px; border-radius:15px; font-size:12px; backdrop-filter: blur(5px);">升级会员 ></div>
+        </div>
+
+        <div class="menu-list">
+            <div class="menu-item" onclick="openVip()">
+                <span>会员中心</span><span style="color:#ccc; font-size:12px">权益对比 ></span>
+            </div>
+            <div class="menu-item" onclick="showToast('打开帮助文档')">
+                <span>使用帮助</span><span style="color:#ccc; font-size:12px">></span>
+            </div>
+            <div class="menu-item">
+                <span>联系客服</span><span style="color:#ccc; font-size:12px">></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 通用功能页 -->
+    <div id="feature-page" class="sub-page">
+        <div class="nav">
+            <div class="nav-back" id="feature-back-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </div>
+            <span id="feature-title">功能名称</span>
+            <div class="nav-right" id="feature-history-btn" onclick="openHistory()">历史任务</div>
+        </div>
+
+        <div class="work-area">
+            <!-- 模块A: 视频上传 -->
+            <div id="module-upload" class="section-upload" onclick="mockUpload()">
+                <svg width="48" height="48" fill="#D1D1D6" viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+                <p id="upload-tip" style="margin-top:12px; font-size:14px;">点击上传视频</p>
+            </div>
+
+            <!-- 模块B: 文本输入 -->
+            <div id="module-input" class="section-input">
+                <label id="input-label">输入文案</label>
+                <textarea id="text-input" class="text-input" placeholder="在此输入..."></textarea>
+            </div>
+
+            <!-- 模块C: 位置选择 -->
+            <div id="module-position" class="section-position">
+                <label>选择文字位置</label>
+                <div class="pos-options">
+                    <div class="pos-btn selected" onclick="selectPos(this)">顶部</div>
+                    <div class="pos-btn" onclick="selectPos(this)">居中</div>
+                    <div class="pos-btn" onclick="selectPos(this)">底部</div>
+                </div>
+            </div>
+
+            <!-- 提交按钮 -->
+            <button id="btn-process" class="btn btn-primary" onclick="startProcess()" disabled>开始处理</button>
+
+            <!-- 教程区域 -->
+            <div id="tutorial-section" class="tutorial-box">
+                <div class="tut-title">使用教程</div>
+                <p class="tut-text">1. 上传需要处理的视频文件或粘贴链接。</p>
+                <p class="tut-text">2. 点击“开始处理”按钮，系统将自动进行AI运算。</p>
+                <p class="tut-text">3. 处理完成后，可在历史记录中查看并下载结果。</p>
+                <div class="tut-img">
+                    <svg width="24" height="24" fill="#ccc" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                    <span style="margin-left:8px">功能演示示意图</span>
+                </div>
+            </div>
+
+            <!-- 结果展示区 -->
+            <div id="result-container" class="result-box">
+                <!-- 视频结果 -->
+                <div id="res-video" style="display:none;">
+                    <div class="video-preview">
+                        <svg width="48" height="48" fill="#fff" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <span style="font-size:12px; margin-top:8px;">预览视频 (已处理)</span>
+                    </div>
+                    <button class="btn btn-primary" onclick="showToast('正在保存到相册...')">下载视频</button>
+                    <button id="btn-video-next" class="btn btn-outline" onclick="doNextStep()">下一步</button>
+                </div>
+                <!-- 文本结果 -->
+                <div id="res-text" style="display:none;">
+                    <div class="text-preview" id="res-text-content"></div>
+                    <button class="btn btn-outline" onclick="showToast('已复制')">复制文案</button>
+                    <button id="btn-text-next" class="btn btn-primary" onclick="doNextStep()">一键智能改写</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. 历史记录页 (分功能) -->
+    <div id="page-history" class="sub-page">
+        <div class="nav">
+            <div class="nav-back" onclick="closeHistory()">
+                <svg width="24" height="24" viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </div>
+            <span>历史任务</span>
+        </div>
+        <div class="history-tip">仅保留近30条处理历史，请及时保存</div>
+        <div class="history-list" id="history-list-container">
+            <!-- JS 动态渲染 -->
+        </div>
+    </div>
+
+    <!-- 5. 会员中心 -->
+    <div id="page-vip" class="sub-page">
+        <div class="nav">
+            <div class="nav-back" onclick="closeVip()">
+                <svg width="24" height="24" viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </div>
+            <span>会员中心</span>
+        </div>
+        <div style="padding:20px;">
+            <h2 style="text-align:center; color:#333; margin-bottom:8px;">升级专业版</h2>
+            <p style="text-align:center; color:#666; font-size:13px; margin-bottom:24px;">解锁无限次创作能力，极速通道</p>
+            <table class="vip-table">
+                <thead><tr><th>权益</th><th>普通用户</th><th class="vip-highlight">VIP会员</th></tr></thead>
+                <tbody>
+                    <tr><td>每日次数</td><td>5次</td><td class="vip-highlight">50次</td></tr>
+                    <tr><td>文案改写</td><td>不限</td><td class="vip-highlight">不限</td></tr>
+                    <tr><td>处理速度</td><td>标准</td><td class="vip-highlight">极速通道</td></tr>
+                    <tr><td>价格</td><td>免费</td><td class="vip-highlight">¥19.9/月</td></tr>
+                </tbody>
+            </table>
+            <button class="btn btn-primary" style="margin-top:30px; background:#2C3E50; color:#FFD700" onclick="showToast('调起微信支付')">立即开通 (¥19.9)</button>
+        </div>
+    </div>
+
+    <!-- 底部 Tab -->
+    <div class="tab-bar">
+        <div class="tab active" onclick="switchTab('home')">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>首页
+        </div>
+        <div class="tab" onclick="switchTab('profile')">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>我的
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 工具函数：时间格式化 ---
+    function getNowStr() {
+        const d = new Date();
+        const pad = n => n < 10 ? '0'+n : n;
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    // --- 模拟数据库 ---
+    let historyData = [
+        { id: 1, type: 'watermark', title: 'funny_video_01.mp4', time: '2023-10-27 14:30:00' },
+        { id: 2, type: 'rewrite', title: '今天给大家分享一个...', time: '2023-10-27 15:20:10' },
+        { id: 3, type: 'watermark', title: 'dance_clip_v2.mp4', time: '2023-10-27 16:05:45' }
+    ];
+
+    // --- 全局状态 ---
+    let currentKey = '';
+    let hasUpload = false;
+    let isViewMode = false;
+
+    // --- 路由控制 (Tab 强制重置) ---
+    function switchTab(tab) {
+        // 1. 强制关闭所有子页面
+        document.querySelectorAll('.sub-page').forEach(el => el.style.display = 'none');
+        
+        // 2. 切换主页面
+        document.getElementById('page-home').classList.toggle('active', tab === 'home');
+        document.getElementById('page-profile').classList.toggle('active', tab === 'profile');
+        document.querySelectorAll('.tab')[0].classList.toggle('active', tab === 'home');
+        document.querySelectorAll('.tab')[1].classList.toggle('active', tab === 'profile');
+    }
+
+    function openVip() { document.getElementById('page-vip').style.display = 'flex'; }
+    function closeVip() { document.getElementById('page-vip').style.display = 'none'; }
+    
+    // 历史记录
+    function openHistory() { 
+        renderHistory(currentKey);
+        document.getElementById('page-history').style.display = 'flex'; 
+    }
+    function closeHistory() { document.getElementById('page-history').style.display = 'none'; }
+
+    // --- 核心功能初始化 ---
+    // fromHistory: 是否从历史列表进入
+    function initFeature(key, preFillData = null, fromHistory = false) {
+        currentKey = key;
+        isViewMode = fromHistory; // 如果从历史进入，则是查看模式
+        const page = document.getElementById('feature-page');
+        const title = document.getElementById('feature-title');
+        
+        // 导航栏逻辑处理
+        const backBtn = document.getElementById('feature-back-btn');
+        const historyBtn = document.getElementById('feature-history-btn');
+
+        if (fromHistory) {
+            // 详情模式：隐藏右上角历史入口，返回键去历史列表
+            historyBtn.style.display = 'none';
+            backBtn.onclick = openHistory; 
+        } else {
+            // 正常模式：显示右上角历史入口，返回键回首页
+            historyBtn.style.display = 'flex';
+            backBtn.onclick = closeFeature;
+        }
+
+        // DOM 元素
+        const modUpload = document.getElementById('module-upload');
+        const modInput = document.getElementById('module-input');
+        const modPos = document.getElementById('module-position');
+        const btn = document.getElementById('btn-process');
+        const resBox = document.getElementById('result-container');
+        const tutBox = document.getElementById('tutorial-section');
+        const inputField = document.getElementById('text-input');
+
+        // 1. 重置 UI
+        hasUpload = false;
+        modUpload.classList.remove('has-file');
+        modUpload.innerHTML = `<svg width="48" height="48" fill="#D1D1D6" viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg><p style="margin-top:12px; font-size:14px;">点击上传视频</p>`;
+        inputField.value = '';
+        
+        // 显隐控制
+        modUpload.style.display = 'none';
+        modInput.style.display = 'none';
+        modPos.style.display = 'none';
+        
+        // 模式判断
+        if (isViewMode) {
+            btn.style.display = 'none';
+            tutBox.style.display = 'none';
+            resBox.style.display = 'block';
+            renderResult(); 
+        } else {
+            btn.style.display = 'block';
+            btn.disabled = true;
+            btn.innerText = '开始处理';
+            tutBox.style.display = 'block';
+            resBox.style.display = 'none';
+        }
+
+        // 2. 配置界面
+        if (key === 'watermark') {
+            title.innerText = '视频去水印';
+            if(!isViewMode) modUpload.style.display = 'flex';
+        } 
+        else if (key === 'subtitle') {
+            title.innerText = '视频去字幕';
+            if(!isViewMode) modUpload.style.display = 'flex';
+        }
+        else if (key === 'extract') {
+            title.innerText = '文案提取';
+            if(!isViewMode) modUpload.style.display = 'flex';
+        }
+        else if (key === 'rewrite') {
+            title.innerText = '文案改写';
+            if(!isViewMode) {
+                modInput.style.display = 'block';
+                document.getElementById('input-label').innerText = '粘贴原视频文案';
+                inputField.placeholder = '请粘贴需要改写的文案...';
+                if(preFillData) { inputField.value = preFillData; btn.disabled = false; }
+            }
+        }
+        else if (key === 'addtext') {
+            title.innerText = '视频加文字';
+            if(!isViewMode) {
+                modUpload.style.display = 'flex';
+                modInput.style.display = 'block';
+                modPos.style.display = 'block';
+                document.getElementById('input-label').innerText = '输入文字标签';
+                inputField.placeholder = '输入要添加到视频上的文字';
+            }
+        }
+
+        if (preFillData === 'video_mock' && !isViewMode) {
+            mockUpload();
+        }
+
+        inputField.oninput = checkBtnState;
+        page.style.display = 'flex';
+        page.style.animation = 'slideIn 0.3s ease';
+    }
+
+    function closeFeature() { document.getElementById('feature-page').style.display = 'none'; }
+
+    // --- 交互动作 ---
+    function mockUpload() {
+        const modUpload = document.getElementById('module-upload');
+        modUpload.classList.add('has-file');
+        modUpload.innerHTML = `<svg width="48" height="48" fill="#2962FF" viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg><p style="margin-top:10px; font-weight:bold;">video_clip.mp4</p>`;
+        hasUpload = true;
+        checkBtnState();
+    }
+
+    function selectPos(el) {
+        document.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+
+    function checkBtnState() {
+        const btn = document.getElementById('btn-process');
+        const txt = document.getElementById('text-input').value.trim();
+        if (currentKey === 'rewrite') btn.disabled = txt.length === 0;
+        else if (currentKey === 'addtext') btn.disabled = !(hasUpload && txt.length > 0);
+        else btn.disabled = !hasUpload;
+    }
+
+    function startProcess() {
+        const btn = document.getElementById('btn-process');
+        
+        if (currentKey === 'rewrite') {
+            btn.innerText = 'AI 改写中...';
+            btn.disabled = true;
+            setTimeout(() => {
+                const txt = document.getElementById('text-input').value;
+                addToHistory('rewrite', txt.substring(0, 10) + '...');
+                document.getElementById('tutorial-section').style.display = 'none';
+                btn.style.display = 'none';
+                document.getElementById('result-container').style.display = 'block';
+                renderResult();
+                showToast('改写完成');
+            }, 800);
+            return;
+        }
+
+        document.getElementById('alert-modal').style.display = 'flex';
+        addToHistory(currentKey, 'video_clip_' + Date.now().toString().slice(-4) + '.mp4');
+    }
+
+    function closeModal() {
+        document.getElementById('alert-modal').style.display = 'none';
+        initFeature(currentKey); 
+    }
+
+    function renderResult() {
+        const vRes = document.getElementById('res-video');
+        const tRes = document.getElementById('res-text');
+        const vNext = document.getElementById('btn-video-next');
+        const tNext = document.getElementById('btn-text-next');
+
+        vRes.style.display = 'none';
+        tRes.style.display = 'none';
+
+        if (currentKey === 'watermark' || currentKey === 'subtitle') {
+            vRes.style.display = 'block';
+            vNext.style.display = 'inline-block';
+            vNext.innerText = '提取该视频文案';
+            vNext.onclick = () => initFeature('extract', 'video_mock');
+        }
+        else if (currentKey === 'extract') {
+            tRes.style.display = 'block';
+            document.getElementById('res-text-content').innerText = "【提取结果】\n大家好，今天分享一个非常实用的视频制作技巧，只需要三步就能完成...";
+            tNext.style.display = 'inline-block';
+            tNext.innerText = '一键智能改写';
+            tNext.onclick = () => initFeature('rewrite', document.getElementById('res-text-content').innerText);
+        }
+        else if (currentKey === 'rewrite') {
+            tRes.style.display = 'block';
+            document.getElementById('res-text-content').innerText = "【改写结果】\n嗨老铁们，今天给大伙整一个绝活，视频制作其实超简单，三步搞定...";
+            tNext.style.display = 'none';
+        }
+        else if (currentKey === 'addtext') {
+            vRes.style.display = 'block';
+            vNext.style.display = 'none';
+        }
+    }
+
+    // --- 历史记录逻辑 ---
+    function addToHistory(type, title) {
+        historyData.unshift({
+            id: Date.now(),
+            type: type,
+            title: title,
+            time: getNowStr() // 使用新格式
+        });
+        if(historyData.length > 30) historyData.pop();
+    }
+
+    function renderHistory(filterKey) {
+        const container = document.getElementById('history-list-container');
+        container.innerHTML = '';
+        
+        const filteredData = historyData.filter(item => item.type === filterKey);
+
+        if (filteredData.length === 0) {
+            container.innerHTML = '<div class="empty-state">暂无历史记录</div>';
+            return;
+        }
+        
+        filteredData.forEach(item => {
+            const isVideo = item.type !== 'rewrite';
+            const icon = isVideo ? 
+                '<svg width="24" height="24" fill="#999" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>' : 
+                '<svg width="24" height="24" fill="#999" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>';
+            
+            const div = document.createElement('div');
+            div.className = 'history-item';
+            div.innerHTML = `
+                <div class="h-thumb">${icon}</div>
+                <div class="h-info">
+                    <div class="h-title">${item.title}</div>
+                    <div class="h-time">${item.time}</div>
+                </div>
+                <div class="h-actions">
+                    <button class="btn-primary btn-small" onclick="viewHistoryDetail(${item.id}, '${item.type}')">详情</button>
+                    <button class="btn-danger" onclick="deleteHistory(${item.id})">删除</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function deleteHistory(id) {
+        historyData = historyData.filter(i => i.id !== id);
+        renderHistory(currentKey); 
+        showToast('已删除');
+    }
+
+    function viewHistoryDetail(id, type) {
+        closeHistory();
+        // 传入 true 表示从历史进入
+        initFeature(type, null, true);
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.innerText = msg;
+        t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 2000);
+    }
+</script>
+</body>
+</html>
